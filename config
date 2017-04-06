@@ -1,0 +1,27 @@
+CPP = g++
+CC = cc
+AR = ar
+CP = cp
+RM = rm
+CCFLAGS = -O2 -fpic -DHAVE_CONFIG_H
+
+#BSD-users, you'll need to change the following line to MAKE = gmake
+#(and also use gmake instead make to build repasm)
+MAKE = make
+
+# Set this according to your libjpeg installation
+LIBJPEGDIR = /usr/include
+
+# Set this according to your php installation
+PHPDIR = /usr/include/php5
+
+#uncommente the following line if you dont want repasm to write file as jpeg
+#or if you don't have (and can't) install libjpeg
+#If you uncomment this, repasm will save its results in a bmp file
+
+#CCFLAGS = $(CCFLAGS) RX_NO_JPEG
+
+
+
+LIB = ../libs
+HEADERS = ../include 

@@ -1,0 +1,226 @@
+RepASM API Documentation
+------------------------
+
+This is a text version of the documentation that can be found at http://repasm.free.fr/api.php
+
+
+
+
+Requirements
+------------
+
+You need to allow the user running the web server a read access to both MPQ files of StarCraft. These files are stardat.mpq and broodat.mpq and can be found in any StarCraft installation. They MUST be renamed in lower case, otherwise the minimap generation will fail. The directory to these files will be the first parameter to provide in each minimap generation function.
+
+On Unix, it's a good idea to have libpeg around ; otherwise, you'll have to modify the Makefiles so that RepASM outputs BMPs instead of JPEG. For Windows binaries, it's already included in the DLL.
+
+
+
+
+Predefined Constants
+--------------------
+
+Rendering mode constants :
+
+    * RENDER_NOTHING (integer) : will display neither doodads nor resources nor starting locations nor units on the generated image.
+    * RENDER_DOODADS (integer) : will display doodads on the generated image.
+    * RENDER_RESOURCES (integer) : will display resources (minerals and gas) on the generated image.
+    * RENDER_STARTING_LOCATIONS (integer) : will display starting locations on the generated images. For images generated from a SCM/SCX, all starting locations will be displayed while for images generated from replays, only actual players (not obs) starting locations will be displayed.
+    * RENDER_UNITS (integer) : will display additional units on the generated image. Might be useful for UMS maps.
+    * RENDER_ALL (integer) : will render all of the above objects.
+
+Rendering quality level :
+
+    * REPASM_HIGH_QUALITY (integer)
+    * REPASM_LOW_QUALITY (integer)
+
+
+
+
+php_bw_load_replay
+------------------
+
+object php_bw_load_replay(string path)
+
+WARNING : from version 3.0, php_bw_load_replay() does NOT return FALSE anymore when failing to load a replay ! See the ErrorCode and ErrorString members below for more information on how to test if a replay failed to be loaded.
+php_bw_load_replay opens the replay specified as the path argument, extracts all information it can and returns the result.
+The returned object has the following members :
+
+    * ErrorCode : the code of the error that occurred when loading the replay. 0 means everything went OK.
+    * ErrorString : the message (in English) related to the error code. OK means, well... evreything went OK :)
+    * GameName : the name of the game.
+    * GameType : the type of the game (Melee, One vs One, Free For All, etc...).
+    * GameLength : the duration of the game (in seconds).
+    * GameDate : a timestamp stating when the game was played. This timestamp is usable through the date() function.
+    * Map : the name of the map the game was played on.
+    * NumPlayer : the total number of players in this game.
+    * Players : an array of objects containing information for each player. See below for details.
+    * Teams : an array of arrays containing the names of each member. The Teams member WILL NOT EXIST if there was no allying during the game whatsoever.
+    * Matchup : a string based on the races used by the players or the teams, e.g. : PvZ or PPvZT, etc...
+
+The Players member contains the following members :
+
+    * Name : the name of the player.
+    * IsObserver : if the player was detected as an observer, this flag will be set to 1. Otherwise, it will be empty.
+    * Race : an integer stating the race of the player. 0 means Zerg, 1 means Terran, 2 means Protoss.
+    * RaceName : the string and human-readable version of the Race member.
+    * Number : the ID of the player on the map. This shouldn't be very useful to you :)
+    * APM : well... this should be obvious :)
+    * Human : if set to 1, the player was human. For a computer player, this variable is empty.
+    * Computer : the opposite of the previous member : set to 1 if the player is a CPU, empty otherwise.
+    * Color : the ID of the color. Like in the player ID case, this shouldn't be very useful to you. We put this in so that there could be some workaround if you have replays involving maps whose colors were customized and are not currently supported by RepASM.
+    * ColorName : the name of the color (in English). Will display "Unsupported" if the color is a weird one and is not listed in RepASM.
+    * ColorHTML : the RGB value of the color, as an integer. In order to be fully usable in a HTML code, see the sample code below :
+
+<?php
+    $colHTML = dechex($player->ColorHTML);
+    if(strlen($colHTML) < 6) {
+        $padding = str_repeat("0", 6 - strlen($colHTML));
+        $colHTML = $padding . $colHTML; }
+;    echo "<font color=\"#$colHTML\">" . $player->Name . "</font>";
+?>
+
+    * StartingLocation12 : the starting location of the player if the map was split in 12 like a clock. This is the usual "standard" way of getting a starting location.
+    * StartingLocation4 : the starting location of the player if the map was split in 4 according to the diagonals. That way, the only values you'll get will be 3, 6, 9 or 12. Look at this example on LT for a better explanation :) This is not the usual method to get starting locations, but it can be helpful to clarify things for maps like LT where the StartingLocation12 info can lead to miscomprehensions.
+    * normXpos and normYpos form a 2D coordinate. Origin (0,0) is the top left corner of the map while (1,1) is the bottom right corner. It may be useful if you want to plot the starting location of each player on a minimap.
+
+The Teams array contains one array per team, each of them containing only the names of its members.
+
+
+
+
+php_bw_jpg_from_scm_ratio
+-------------------------
+
+void php_bw_jpg_from_scm_ratio(string mpq_dir, string map_path, string output_path, int ratio, int quality=REPASM_LOW_QUALITY, int jpeg_quality=90, int rendering_mode=RENDER_ALL)
+
+php_bw_jpg_from_scm_ratio creates an image file specified by the output_path variable from the SCM/SCX file that was found at map_path using the specified ratio. On jpg_from_scm functions, all starting locations are rendered. Here's a description of each parameter :
+
+    * mpq_dir : the DIRECTORY containing stardat.mpq and broodat.mpq. Note the lower-case names, they're important if you're on Unix, your MPQ files must be named that way.
+    * map_path : the COMPLETE PATH to the SCM/SCX file you want to generate a minimap from.
+    * output_path : the COMPLETE PATH to the image file you want to create. If a file already exists at that location, it will be overwritten.
+    * ratio : an integer specifying the factor you want to reduce the map of. It must not be lower than 1. For example, a ratio of 8 will reduce the map to 1/8th of its full size IN PIXELS. For a 128x128 map like LT or Luna, the full size in pixels is 4096x4096 ; therefore, an 8 ratio will result in a 512x512 image.
+    * quality : the rendering quality. Can either be REPASM_LOW_QUALITY (default) or REPASM_HIGH_QUALITY. See also the guide on how to use minimap functions properly (minimap_guide.txt).
+    * jpeg_quality : the QUALITY level (and not the compression level), in %, of the image you want to generate. For example, a jpeg_quality value of 90 will output a nice image while a value of 10 will result in a poor quality image. Of course, the worse jpeg_quality is, the smaller the file is. Default is 90.
+    * rendering_mode : the objects you want to see on your minimap. See the Rendering mode predefined constants in the above section to have a list of what your parameter can be. You can combine different constants using the | operator. Example : if you want to display both starting locations and resources on your image but not doodads or additional units, your rendering_mode parameter will be : RENDER_STARTING_LOCATIONS|RENDER_RESOURCES. Default is RENDER_ALL.
+
+
+
+
+php_bw_jpg_from_scm_dim
+-----------------------
+
+void php_bw_jpg_from_scm_dim(string mpq_dir, string map_path, string output_path, int max_size, int quality=REPASM_LOW_QUALITY, int jpeg_quality=90, int rendering_mode=RENDER_ALL)
+
+php_bw_jpg_from_scm_dim creates an image file specified by the output_path variable from the SCM/SCX file that was found at map_path using the specified size. On jpg_from_scm functions, all starting locations are rendered. Here's a description of each parameter :
+
+    * mpq_dir : the DIRECTORY containing stardat.mpq and broodat.mpq. Note the lower-case names, they're important if you're on Unix, your MPQ files must be named that way.
+    * map_path : the COMPLETE PATH to the SCM/SCX file you want to generate a minimap from.
+    * output_path : the COMPLETE PATH to the image file you want to create. If a file already exists at that location, it will be overwritten.
+    * max_size : an integer specifying the size of your image IN PIXELS. For a square map, a max_size of 1024 will result in a 1024x1024 image. But for a rectangular map, only the biggest side will be 1024 while the other side will be smaller. For example, for a 256x128 (tiles) map, the output image will be 1024x512 (pixels).
+    * quality : the rendering quality. Can either be REPASM_LOW_QUALITY (default) or REPASM_HIGH_QUALITY. See also the guide on how to use minimap functions properly (minimap_guide.txt).
+    * jpeg_quality : the QUALITY level (and not the compression level), in %, of the image you want to generate. For example, a jpeg_quality value of 90 will output a nice image while a value of 10 will result in a poor quality image. Of course, the worse jpeg_quality is, the smaller the file is. Default is 90.
+    * rendering_mode : the objects you want to see on your minimap. See the Rendering mode predefined constants in the above section to have a list of what your parameter can be. You can combine different constants using the | operator. Example : if you want to display both starting locations and resources on your image but not doodads or additional units, your rendering_mode parameter will be : RENDER_STARTING_LOCATIONS|RENDER_RESOURCES. Default is RENDER_ALL.
+
+
+
+
+php_bw_jpg_from_rep_ratio
+-------------------------
+
+void php_bw_jpg_from_rep_ratio(string mpq_dir, string replay_path, string output_path, int ratio, int quality=REPASM_LOW_QUALITY, int jpeg_quality=90, int rendering_mode=RENDER_ALL)
+
+php_bw_jpg_from_rep_ratio creates an image file specified by the output_path variable from the replay file that was found at rep_path using the specified ratio. On jpg_from_rep functions, starting locations are visible only for actual players. Others (observers' starting locations, for example) are not rendered. Here's a description of each parameter :
+
+    * mpq_dir : the DIRECTORY containing stardat.mpq and broodat.mpq. Note the lower-case names, they're important if you're on Unix, your MPQ files must be named that way.
+    * replay_path : the COMPLETE PATH to the replay file you want to generate a minimap from.
+    * output_path : the COMPLETE PATH to the image file you want to create. If a file already exists at that location, it will be overwritten.
+    * ratio : an integer specifying the factor you want to reduce the map of. It must not be lower than 1. For example, a ratio of 8 will reduce the map to 1/8th of its full size IN PIXELS. For a 128x128 map like LT or Luna, the full size in pixels is 4096x4096 ; therefore, an 8 ratio will result in a 512x512 image.
+    * quality : the rendering quality. Can either be REPASM_LOW_QUALITY (default) or REPASM_HIGH_QUALITY. See also the guide on how to use minimap functions properly (minimap_guide.txt).
+    * jpeg_quality : the QUALITY level (and not the compression level), in %, of the image you want to generate. For example, a jpeg_quality value of 90 will output a nice image while a value of 10 will result in a poor quality image. Of course, the worse jpeg_quality is, the smaller the file is. Default is 90.
+    * rendering_mode : the objects you want to see on your minimap. See the Rendering mode predefined constants in the above section to have a list of what your parameter can be. You can combine different constants using the | operator. Example : if you want to display both starting locations and resources on your image but not doodads or additional units, your rendering_mode parameter will be : RENDER_STARTING_LOCATIONS|RENDER_RESOURCES. Default is RENDER_ALL.
+
+
+
+
+php_bw_jpg_from_rep_dim
+-----------------------
+
+void php_bw_jpg_from_rep_dim(string mpq_dir, string replay_path, string output_path, int max_size, int quality=REPASM_LOW_QUALITY, int jpeg_quality=90, int rendering_mode=RENDER_ALL)
+
+php_bw_jpg_from_rep_dim creates an image file specified by the output_path variable from the replay file that was found at rep_path using the specified size. On jpg_from_rep functions, starting locations are visible only for actual players. Others (observers' starting locations, for example) are not rendered. Here's a description of each parameter :
+
+    * mpq_dir : the DIRECTORY containing stardat.mpq and broodat.mpq. Note the lower-case names, they're important if you're on Unix, your MPQ files must be named that way.
+    * replay_path : the COMPLETE PATH to the replay file you want to generate a minimap from.
+    * output_path : the COMPLETE PATH to the image file you want to create. If a file already exists at that location, it will be overwritten.
+    * max_size : an integer specifying the size of your image IN PIXELS. For a square map, a max_size of 1024 will result in a 1024x1024 image. But for a rectangular map, only the biggest side will be 1024 while the other side will be smaller. For example, for a 256x128 (tiles) map, the output image will be 1024x512 (pixels).
+    * quality : the rendering quality. Can either be REPASM_LOW_QUALITY (default) or REPASM_HIGH_QUALITY. See also the guide on how to use minimap functions properly (minimap_guide.txt).
+    * jpeg_quality : the QUALITY level (and not the compression level), in %, of the image you want to generate. For example, a jpeg_quality value of 90 will output a nice image while a value of 10 will result in a poor quality image. Of course, the worse jpeg_quality is, the smaller the file is. Default is 90.
+    * rendering_mode : the objects you want to see on your minimap. See the Rendering mode predefined constants in the above section to have a list of what your parameter can be. You can combine different constants using the | operator. Example : if you want to display both starting locations and resources on your image but not doodads or additional units, your rendering_mode parameter will be : RENDER_STARTING_LOCATIONS|RENDER_RESOURCES. Default is RENDER_ALL.
+
+
+
+
+Examples
+--------
+
+php_bw_load_replay :
+
+This sample loads the replay located in D:\StarCraft\maps\replays\MyReplay.rep (notice how backslashes are doubled) and displays the name of the map, the duration of the game and the name, race and APM of each player (including observers).
+<?php
+    $info = php_bw_load_replay("D:\\StarCraft\\maps\\replays\\MyReplay.rep");
+    if($info->ErrorCode != 0)
+        die("Could not load the replay ! Message : " . $info->ErrorString);
+    echo "Game played on " . $info->Map;
+    echo "<br>Duration : " . $info->GameLength;
+    echo "<br>Players info : <br>";
+    foreach($info->Players as $player)
+        echo $player->Name . " : " . $player->RaceName . ", " . $player->APM . "APM.<br>";
+?>
+
+
+php_bw_jpg_from_scm_ratio :
+
+This sample generates a 1/8th high quality minimap of the map MyMap.scm located in D:\StarCraft\maps to a test.jpg file located in E:\MyWebSite\img and displays this image in the page. Only resources are rendered. The MPQ files are located in "F:\Program Files\Starcraft.
+<?php
+    $map = php_bw_jpg_from_scm_ratio("F:\\Program Files\\Starcraft", "D:\\StarCraft\\maps\\MyMap.scm", "E:\\MyWebSite\\img\\test.jpg", 8, REPASM_HIGH_QUALITY, 70, RENDER_RESOURCES);
+    if($map->ErrorCode == 0)
+        echo "<img src=\"test.jpg\" />";
+    else
+        echo "Error : " . $map->ErrorString;
+?>
+
+
+php_bw_jpg_from_scm_dim :
+
+This sample generates a 128x128 low quality minimap of the map "Neo Lost Temple.scm" located in /home/users/taiche/StarCraft/maps to a test.jpg file located in /home/users/repasm/www/img and displays this image in the page. The MPQ files are located in /home/users/taiche/StarCraft. The other options are left by default. These settings are quite nice for generating thumbnails as the resulting image's size will barely be higher than 6 KB for a quality factor of 90 %, which is definitely enough.
+<?php
+    $map = php_bw_jpg_from_scm_dim("/home/users/taiche/StarCraft", "/home/users/taiche/StarCraft/maps/Neo Lost Temple.scm", "/home/users/repasm/www/img/test.jpg", 128);
+    if($map->ErrorCode == 0)
+        echo "<img src=\"test.jpg\" />";
+    else
+        echo "Error : " . $map->ErrorString;
+?>
+
+
+php_bw_jpg_from_rep_ratio :
+
+This sample generates a full-size high quality minimap that can be found in the MyReplay.rep replay located in D:\StarCraft\maps\replays to a test.jpg file located in E:\MyWebSite\img and displays this image in the page. Everything is rendered. The MPQ files are located in "F:\Program Files\Starcraft. This will generate a HUGE image, hence the 50 % quality factor. This is quite pointless anyway, but is always fun to watch ;)
+<?php
+    $map = php_bw_jpg_from_rep_ratio("F:\\Program Files\\Starcraft", "D:\\StarCraft\\maps\\replays\\MyReplay.rep", "E:\\MyWebSite\\img\\test.jpg", 1, REPASM_HIGH_QUALITY, 50);
+    if($map->ErrorCode == 0)
+        echo "<img src=\"test.jpg\" />";
+    else
+        echo "Error : " . $map->ErrorString;
+?>
+
+
+php_bw_jpg_from_rep_dim :
+
+This sample generates a 1024x1024 high quality minimap of the map "Neo Lost Temple.scm" located in /home/users/taiche/StarCraft/maps to a test.jpg file located in /home/users/repasm/www/img and displays this image in the page. The MPQ files are located in /home/users/taiche/StarCraft. These settings are quite nice to display a decent picture of a map without generating a file too big (generally < 300 KB for 128x128 maps) and the quality level can be lowered a bit.
+<?php
+    $map = php_bw_jpg_from_rep_dim("F:\\Program Files\\Starcraft", "D:\\StarCraft\\maps\\replays\\MyReplay.rep", "E:\\MyWebSite\\img\\test.jpg", 1024, REPASM_HIGH_QUALITY, 90);
+    if($map->ErrorCode == 0)
+        echo "<img src=\"test.jpg\" />";
+    else
+        echo "Error : " . $map->ErrorString;
+?>

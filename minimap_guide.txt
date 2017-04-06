@@ -1,0 +1,38 @@
+High or low quality ?
+---------------------
+
+RepASM minimap functions probably does more than you want. Its high-quality rendering engine can render nearly everything, from doodads to units shadows. This has of course a cost as repasm needs to open and parse many files to achieve this rendering. Besides, you probably want to just generate a small thumbnail of the map (128x128 or 256x256), and at this resolution this is overkill to compute such details as units shadows or accurate crytal field. Overall performances are probably of more concerns. That's why we included a low-quality rendering engine, profiled for quick generation of map thumbnails.
+
+-----------------------------------------------------------------------------------------
+    Data	| 	In High Quality Rendering	|   In Low Quality Rendering	|
+----------------|---------------------------------------|-------------------------------|
+doodads		| fully renderered			| not rendered			|
+----------------|---------------------------------------|-------------------------------|
+units		| fully rendered using SC sprites	| not rendered			|
+----------------|---------------------------------------|-------------------------------|
+resources	| fully rendered using SC sprites	| rendered using colored squares|
+----------------|---------------------------------------|-------------------------------|
+shadows		| fully rendered using SC sprites	| not rendered			|
+-----------------------------------------------------------------------------------------
+
+As a matter of fact, a minimap with a low resolution will be more readable if generated with the low quality engine rather than with the high-quality one, thanks to the colored squares that remain visible even with high reduction factor.
+
+
+
+Performance impact of high quality rendering
+--------------------------------------------
+
+If you plan on rendering high resolution maps on your webserver, keep in mind the following :
+
+    * RepASM internally works on a bitmap whose size matches the final resolution size. If you ask it to generate a 4096x4096 map of Lost Temple, then you will temporarily end up with 4096x4096x4 bytes (i.e. 64 MB) used in memory (that's quite a lot, if you ask me). This memory is of course freed by repasm when the rendering process is over but during the rendering process, the memory usage will peak to 64 MB.
+    * Using powers of two resolutions may speed up rendering, especially when dealing with high resolution. Example : asking for a 256x256 (2^8) or 512x512 (2^9) image will be rendered quickly than asking for a 384x384 or 237x237 image.
+    * Do not neglect the final image size. Using the example of Lost Temple, a 4096x4096 image compressed by 50 % in JPG will result in a 1.6 MB file. This will have a big impact in terms of bandwidth and transfer rate for the users of your site, especially for a not-so-nice image. Of course, rendering 4096x4096 images is quite pointless but you might want to generate large images for some reason, so do not forget the bandwidth issues for your users.
+    * Obviously, in both rendering modes, the larger the image to generate, the higher CPU time it will take. This is not significant for small images but if you have a web server that already eats up lots of CPU, we recommend you switch to low-quality mode when generating large images.
+
+
+
+Miscallaneous information
+-------------------------
+
+RepASM can only mignify a map, not magnify it. To compute the maximal resolution available for a map, multiply its size by 32. (eg, for LT the maximal available resolution is 128x32 = 4096). Higher resolutions will be clamped.
+Zerg creep is not rendered around Zergs starting locations, even in high-quality mode. This has not been implemented yet.
